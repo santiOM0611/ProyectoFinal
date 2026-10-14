@@ -218,3 +218,30 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- Específico del proyecto ---
+
+# Dashboards y exportaciones generadas
+output/*
+!output/.gitkeep
+
+# Archivos subidos temporalmente por la web
+uploads/
+tmp/
+
+# Datasets grandes (los de ejemplo pequeños sí se suben)
+data/*.csv
+data/*.xlsx
+!data/ejemplo_*.csv
+!data/ejemplo_*.xlsx
+
+# Editores
+.vscode/
+.idea/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Temporales de Word/Office
+~$*
