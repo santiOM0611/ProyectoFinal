@@ -5,13 +5,8 @@ import pandas as pd
 
 from modules import config
 
-# Deja el DataFrame listo para analizar y registra todo lo que cambio
-# en un diccionario (log), porque eso se muestra luego en el reporte.
-
-# Texto que parece fecha: 2024-01-31, 31/01/2024, 31.1.24
 PATRON_FECHA = r"^\s*\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}"
 
-# True si la columna es de texto o de tipo object (que puede ser texto)
 def _es_texto(serie):
     return pd.api.types.is_string_dtype(serie) or serie.dtype == object
 
@@ -36,19 +31,19 @@ def _limpiar_nombres(df, log):
 
 # Quita espacios en los textos y convierte textos vacios en nulos.
 def _limpiar_texto(df):
+    marcadores_nulo = ["", *config.VALORES_NULOS]
     for col in df.columns:
         if _es_texto(df[col]):
-            df[col] = df[col].astype("string").str.strip().replace("", pd.NA)
+            df[col] = df[col].astype("string").str.strip().replace(marcadores_nulo, pd.NA)
     return df
 
-# Intenta convertir texto como $1,234.50, 15% o 12,5 a numero. 
 # Devuelve una Serie numerica (con NaN donde no pudo convertir).
 def _texto_a_numero(serie):
     texto = serie.astype(object)
 
-    texto = texto.replace(r"[\$€£%\s]", "", regex=True) # quitar simbolos de moneda, porcentaje y espacios
-    texto = texto.replace(r"(?<=\d),(?=\d{3}(?:,|\.|$))", "", regex=True) # quitar comas de miles:  1,234  ->  1234
-    texto = texto.replace(r"(?<=\d),(?=\d)", ".", regex=True)  # coma decimal -> punto:  12,5  ->  12.5 
+    texto = texto.replace(r"[\$€£%\s]", "", regex=True)
+    texto = texto.replace(r"(?<=\d),(?=\d{3}(?:,|\.|$))", "", regex=True) 
+    texto = texto.replace(r"(?<=\d),(?=\d)", ".", regex=True)  
     return pd.to_numeric(texto, errors="coerce")
 
 # Convierte columnas de texto que en realidad son numeros.
@@ -60,7 +55,7 @@ def _convertir_numeros(df, log):
         original = df[col].dropna()
         if original.empty:
             continue
-        if original.astype(str).str.match(r"^0\d").any(): # Codigos como '00123' no se deben convertir (se perderian los ceros)
+        if original.astype(str).str.match(r"^0\d").any(): 
             continue
         convertida = _texto_a_numero(df[col])
         proporcion = convertida.notna().sum() / len(original)
@@ -79,7 +74,7 @@ def _convertir_fechas(df, log):
         original = df[col].dropna()
         if original.empty:
             continue
-        parece_fecha = original.astype(str).str.match(PATRON_FECHA).mean() # Primero verificamos que el texto se vea como fecha
+        parece_fecha = original.astype(str).str.match(PATRON_FECHA).mean() 
         if parece_fecha < config.UMBRAL_CONVERSION:
             continue
         with warnings.catch_warnings():
@@ -93,7 +88,7 @@ def _convertir_fechas(df, log):
     log["columnas_convertidas_a_fecha"] = convertidas
     return df
 
-# Rellena los nulos: mediana en numericas, moda en categoricas.
+# Rellena los nulos
 def _imputar(df, log):
     imputaciones = {}
     for col in df.columns:
@@ -103,7 +98,6 @@ def _imputar(df, log):
 
         serie = df[col]
         if pd.api.types.is_datetime64_any_dtype(serie):
-            # inventar fechas no tiene sentido: se dejan como estan
             imputaciones[col] = {"metodo": "sin imputar (fecha)", "valor": None,
                                  "cantidad": nulos}
             continue
@@ -125,7 +119,7 @@ def _imputar(df, log):
     log["imputaciones"] = imputaciones
     return df
 
-# Limpia un DataFrame. Devuelve (df_limpio, log). 
+# Limpia un DataFrame
 def limpiar(df):
 
     df = df.copy()  # Nunca tocar el original

@@ -7,12 +7,13 @@ MIN_FILAS = 10
 MIN_COLUMNAS = 2
 
 # Limpieza
-MAX_NULOS_COLUMNA = 0.50     
+MAX_NULOS_COLUMNA = 0.40     
 UMBRAL_CONVERSION = 0.90     
 VALOR_DESCONOCIDO = "Desconocido"
+VALORES_NULOS = ("?", "-", "--", "s/d", "S/D", "n/d", "N/D")
 
 # Deteccion de tipos
-MAX_CATEGORIAS = 20          
+MAX_CATEGORIAS = 30          
 MAX_CATEGORIAS_GRANDE = 50   
 RATIO_CATEGORIA = 0.5       
 RATIO_CATEGORIA_GRANDE = 0.05
