@@ -1,4 +1,4 @@
-# Modulo 2: limpieza basica.
+# Limpieza basica.
 import re
 import warnings
 import pandas as pd
