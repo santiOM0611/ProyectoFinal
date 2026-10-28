@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Análisis exploratorio automatizado</title>
+<style>
+  :root { --fondo: #f3f2ee; --superficie: #fcfcfb; --tinta: #0b0b0b; --tinta-sec: #52514e;
+          --apagado: #898781; --borde: #e1e0d9; --azul: #2a78d6; --azul-suave: #e8f0fb; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: var(--fondo); color: var(--tinta); line-height: 1.5;
+         font-family: system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 15px;
+         display: flex; align-items: center; justify-content: center; padding: 24px 16px; }
+  main { width: 100%; max-width: 620px; }
+  h1 { font-size: 28px; letter-spacing: -0.01em; margin: 0 0 6px; }
+  .sub { color: var(--tinta-sec); margin: 0 0 22px; }
+  form { background: var(--superficie); border: 1px solid var(--borde); border-radius: 12px; padding: 22px; }
+  label { display: block; font-weight: 600; margin-bottom: 6px; }
+  .ayuda { color: var(--apagado); font-size: 13px; font-weight: 400; }
+  .zona { display: block; border: 2px dashed var(--borde); border-radius: 10px; padding: 26px 16px;
+          text-align: center; cursor: pointer; background: #fafaf8; }
+  .zona:hover, .zona.activa { border-color: var(--azul); background: var(--azul-suave); }
+  .zona input { display: none; }
+  .zona .nombre { color: var(--azul); font-weight: 600; word-break: break-all; }
+  .campo { margin-top: 18px; }
+  input[type=text] { width: 100%; padding: 9px 12px; border: 1px solid var(--borde); border-radius: 8px;
+                     font: inherit; background: #fff; }
+  input[type=text]:focus { outline: 2px solid var(--azul-suave); border-color: var(--azul); }
+  button { margin-top: 22px; width: 100%; padding: 11px; border: 0; border-radius: 8px; background: var(--azul);
+           color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+  button:disabled { opacity: .7; cursor: progress; }
+  .error { background: #fdeceb; border: 1px solid #f3b9b8; color: #a8211f; padding: 10px 14px;
+           border-radius: 8px; margin-bottom: 16px; }
+  .pie { color: var(--apagado); font-size: 13px; margin-top: 14px; text-align: center; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Análisis exploratorio automatizado</h1>
+  <p class="sub">Sube un archivo y obtén estadísticas, valores atípicos, grupos, relaciones y gráficos en un solo reporte.</p>
+
+  <form method="post" action="{{ url_for('analizar') }}" enctype="multipart/form-data" id="formulario">
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+    <label for="archivo" class="zona" id="zona">
+      <input type="file" id="archivo" name="archivo" accept=".csv,.xlsx,.xls" required>
+      <span id="texto">Haz clic para elegir un archivo <span class="ayuda">({{ extensiones }}, máx. {{ max_mb }} MB)</span></span>
+    </label>
+
+    <div class="campo">
+      <label for="hoja">Hoja del Excel <span class="ayuda">(opcional; por defecto, la primera)</span></label>
+      <input type="text" id="hoja" name="hoja" placeholder="Ej: Ventas">
+    </div>
+    <div class="campo">
+      <label for="ignorar">Columnas a ignorar en el agrupamiento <span class="ayuda">(opcional, separadas por coma)</span></label>
+      <input type="text" id="ignorar" name="ignorar" placeholder="Ej: Jornada, Mes">
+    </div>
+
+    <button type="submit" id="boton">Analizar archivo</button>
+  </form>
+  <p class="pie">El archivo se procesa en tu propio computador y no se guarda en ninguna parte.</p>
+</main>
+
+<script>
+  const entrada = document.getElementById("archivo");
+  const texto = document.getElementById("texto");
+  const zona = document.getElementById("zona");
+  entrada.addEventListener("change", () => {
+    if (entrada.files.length) { texto.innerHTML = '<span class="nombre"></span>'; texto.firstChild.textContent = entrada.files[0].name; }
+  });
+  ["dragover", "dragenter"].forEach(e => zona.addEventListener(e, ev => { ev.preventDefault(); zona.classList.add("activa"); }));
+  ["dragleave", "drop"].forEach(e => zona.addEventListener(e, () => zona.classList.remove("activa")));
+  zona.addEventListener("drop", ev => {
+    ev.preventDefault();
+    if (ev.dataTransfer.files.length) { entrada.files = ev.dataTransfer.files; entrada.dispatchEvent(new Event("change")); }
+  });
+  document.getElementById("formulario").addEventListener("submit", () => {
+    const boton = document.getElementById("boton");
+    boton.disabled = true; boton.textContent = "Analizando… puede tardar unos segundos";
+  });
+</script>
+</body>
+</html>
