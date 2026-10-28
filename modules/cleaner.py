@@ -5,7 +5,9 @@ import pandas as pd
 
 from modules import config
 
-PATRON_FECHA = r"^\s*\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}"
+PATRON_FECHA = (r"^\s*(?:\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}"
+                r"|(?:[A-Za-z]{3,9},?\s+)?[A-Za-z]{3,9}\.?\s+\d{1,2},?\s+\d{4}"
+                r"|\d{1,2}\s+[A-Za-z]{3,9}\.?,?\s+\d{2,4})")
 
 def _es_texto(serie):
     return pd.api.types.is_string_dtype(serie) or serie.dtype == object

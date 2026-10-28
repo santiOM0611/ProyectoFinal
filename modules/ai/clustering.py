@@ -42,10 +42,14 @@ def ejecutar_kmeans(X):
 
 # DBSCAN
 def estimar_eps(X, min_muestras):
-
     vecinos = NearestNeighbors(n_neighbors=min_muestras).fit(X)
     distancias, _ = vecinos.kneighbors(X)
-    return float(np.percentile(distancias[:, -1], 90))
+    ultima = distancias[:, -1]
+    eps = float(np.percentile(ultima, 90))
+    if eps <= 0:
+        positivas = ultima[ultima > 0]
+        eps = float(np.median(positivas)) if len(positivas) else 0.5
+    return eps
 
 
 def ejecutar_dbscan(X):

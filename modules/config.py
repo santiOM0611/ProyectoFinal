@@ -13,7 +13,7 @@ VALOR_DESCONOCIDO = "Desconocido"
 VALORES_NULOS = ("?", "-", "--", "s/d", "S/D", "n/d", "N/D")
 
 # Deteccion de tipos
-MAX_CATEGORIAS = 30          
+MAX_CATEGORIAS = 50          
 MAX_CATEGORIAS_GRANDE = 50   
 RATIO_CATEGORIA = 0.5       
 RATIO_CATEGORIA_GRANDE = 0.05
