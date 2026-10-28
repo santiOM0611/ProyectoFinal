@@ -1,5 +1,3 @@
-# Clustering
-
 import numpy as np
 import pandas as pd
 from sklearn.cluster import DBSCAN, KMeans
@@ -7,11 +5,9 @@ from sklearn.decomposition import PCA
 from sklearn.metrics import silhouette_score
 from sklearn.neighbors import NearestNeighbors
 from sklearn.preprocessing import StandardScaler
-
 from modules import config
 from modules.ai.base import resultado_base
 from modules.type_detector import columnas_por_tipo
-
 
 def interpretar_silhouette(valor):
     if valor >= 0.5:
@@ -21,8 +17,8 @@ def interpretar_silhouette(valor):
     return "sin una estructura de grupos clara"
 
 # K-means
-def ejecutar_kmeans(X):
 
+def ejecutar_kmeans(X):
     n = len(X)
     k_maximo = min(config.K_MAX, n - 1)
     muestra = config.MUESTRA_SILHOUETTE if n > config.MUESTRA_SILHOUETTE else None
@@ -51,15 +47,14 @@ def estimar_eps(X, min_muestras):
         eps = float(np.median(positivas)) if len(positivas) else 0.5
     return eps
 
-
 def ejecutar_dbscan(X):
     min_muestras = int(min(50, max(config.DBSCAN_MIN_MUESTRAS, round(0.02 * len(X)))))
     eps = estimar_eps(X, min_muestras)
     modelo = DBSCAN(eps=eps, min_samples=min_muestras).fit(X)
     return modelo.labels_, eps, min_muestras
 
-
 # Perfil de cada grupo
+
 def perfilar_clusters(datos, etiquetas):
     media_global = datos.mean()
     desviacion_global = datos.std(ddof=0)
@@ -88,8 +83,8 @@ def perfilar_clusters(datos, etiquetas):
             })
     return tamanos, pd.DataFrame(filas), diferencias
 
-
 # Funcion principal del modulo
+
 def agrupar(df, esquema, mascara_excluir=None, excluir=()):
     columnas = [c for c in columnas_por_tipo(esquema, "numerica")
                 if df[c].std() > 0 and c not in excluir]
@@ -111,14 +106,22 @@ def agrupar(df, esquema, mascara_excluir=None, excluir=()):
     escalador = StandardScaler().fit(datos_usados)
     X = escalador.transform(datos_usados)
 
+    # datos muy repetidos 
+    combinaciones = len(np.unique(np.round(X, 6), axis=0))
+    datos_discretos = combinaciones < config.RATIO_DATOS_DISCRETOS * len(X)
+
+    # 2) K-means y DBSCAN
     puntajes, etiquetas_km = ejecutar_kmeans(X)
     etiquetas_db, eps, min_muestras = ejecutar_dbscan(X)
 
+    # 3) PCA
     pca = PCA(n_components=2, random_state=config.SEMILLA).fit(X)
     coordenadas = pca.transform(escalador.transform(df[columnas]))
 
+    # 4) perfil de los grupos de K-means
     tamanos, distintivas, diferencias = perfilar_clusters(datos_usados, etiquetas_km)
 
+    # 5) etiquetas para todas las filas 
     completas_km = np.full(len(df), -1)
     completas_km[usar] = etiquetas_km
     completas_db = np.full(len(df), -1)
@@ -140,6 +143,8 @@ def agrupar(df, esquema, mascara_excluir=None, excluir=()):
         "dbscan_eps": round(eps, 3),
         "dbscan_min_muestras": min_muestras,
         "varianza_explicada_pca": round(float(pca.explained_variance_ratio_.sum()) * 100, 1),
+        "combinaciones_unicas": combinaciones,
+        "datos_discretos": bool(datos_discretos),
     }
     resultado["tablas"] = {
         "etiquetas": etiquetas,
@@ -160,6 +165,15 @@ def agrupar(df, esquema, mascara_excluir=None, excluir=()):
         resultado["advertencias"].append(
             "Los grupos de K-means no estan bien separados (silhouette bajo): "
             "los datos podrian no tener una estructura de grupos clara.")
+    if datos_discretos:
+        resultado["advertencias"].append(
+            f"Hay solo {combinaciones} combinaciones distintas en {int(usar.sum())} registros "
+            "(valores que se repiten mucho): los grupos reflejan esas combinaciones y el "
+            "silhouette puede salir inflado.")
+    if int(mejor["k"]) == min(config.K_MAX, len(X) - 1):
+        resultado["advertencias"].append(
+            f"El mejor k coincide con el maximo probado ({config.K_MAX}): "
+            "podria haber mas grupos o los datos ser discretos.")
     if n_grupos_db <= 1:
         resultado["advertencias"].append(
             "DBSCAN encontro como maximo un grupo: los datos forman una sola nube densa.")

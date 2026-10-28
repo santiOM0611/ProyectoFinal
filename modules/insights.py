@@ -34,7 +34,22 @@ def hallazgos_calidad(log, esquema, estadisticas):
             "calidad", "alto" if porcentaje >= 5 else "medio",
             f"Se {'eliminó' if duplicados == 1 else 'eliminaron'} {_plural(duplicados, 'fila duplicada', 'filas duplicadas')} ({_pct(porcentaje)})",
             "Las filas repetidas se quitaron para que no pesen doble en el análisis."))
+    
+    for columna, cambios in log.get("categorias_unificadas", {}).items():
+        ejemplos = "; ".join(f"«{o}» → «{d}»" for o, d in list(cambios.items())[:3])
+        resultado.append(_hallazgo(
+            "calidad", "medio",
+            f"En «{columna}» se unificaron {_plural(len(cambios), 'nombre', 'nombres')} escritos de forma distinta",
+            f"Ejemplos: {ejemplos}. Se agruparon por mayúsculas, tildes, puntuación y sufijos "
+            "como FC, y se conservó la forma más frecuente."))
 
+    for columna, pares in log.get("posibles_duplicados", {}).items():
+        ejemplos = "; ".join(f"«{a}» y «{b}»" for a, b in pares[:3])
+        resultado.append(_hallazgo(
+            "calidad", "medio",
+            f"En «{columna}» podría haber nombres repetidos que no se unificaron",
+            f"Ejemplos: {ejemplos}. Si son lo mismo, conviene corregirlos en el archivo original: "
+            "mientras tanto, los análisis por esta columna quedan divididos."))
     eliminadas = log.get("columnas_eliminadas_por_nulos", [])
     if eliminadas:
         resultado.append(_hallazgo(
@@ -142,12 +157,18 @@ def hallazgos_clustering(clustering):
 
     r = clustering["resumen"]
     silhouette = r["kmeans_silhouette"]
-    nivel = "alto" if silhouette >= 0.5 else "medio"
-    titulo = f"K-means encontró {r['kmeans_k']} grupos ({r['kmeans_interpretacion']})"
+    nivel = "alto" if silhouette >= 0.5 and not r["datos_discretos"] else "medio"
+    interpretacion = ("datos muy repetidos: interpretar con cuidado" if r["datos_discretos"]
+                      else r["kmeans_interpretacion"])
+    titulo = f"K-means encontró {r['kmeans_k']} grupos ({interpretacion})"
     detalle = f"Silhouette = {silhouette}. " + _describir_grupos(clustering) + "."
     if silhouette < 0.25:
         detalle += (" Un silhouette tan bajo indica que los registros no forman grupos claros: "
                     "no conviene sacar conclusiones fuertes de estos grupos.")
+    if r["datos_discretos"]:
+        detalle += (f" Ojo: hay solo {r['combinaciones_unicas']} combinaciones distintas de valores, "
+                    "así que los grupos reflejan combinaciones repetidas y el silhouette puede "
+                    "salir inflado.")
     resultado = [_hallazgo("clustering", nivel, titulo, detalle)]
 
     if r["dbscan_grupos"] <= 1:

@@ -139,11 +139,17 @@ def _kpis(resultado):
 
 
 def _pasos_limpieza(log):
+    """Convierte el log de limpieza en una tabla legible de 'que se hizo'."""
     def nombres(valor):
         elementos = list(valor.keys()) if isinstance(valor, dict) else list(valor)
         return ", ".join(str(e) for e in elementos[:6]) + (" …" if len(elementos) > 6 else "")
 
-    imputados = sum(v["cantidad"] for v in log.get("imputaciones", {}).values())
+    imputaciones = log.get("imputaciones", {})
+    sin_fecha = {c: v for c, v in imputaciones.items() if v["metodo"].startswith("sin imputar")}
+    rellenadas = {c: v for c, v in imputaciones.items() if c not in sin_fecha}
+    imputados = sum(v["cantidad"] for v in rellenadas.values())
+    fechas_vacias = sum(v["cantidad"] for v in sin_fecha.values())
+    unificadas = log.get("categorias_unificadas", {})
     pasos = [
         ("Filas duplicadas eliminadas", log["duplicados_eliminados"], ""),
         ("Filas completamente vacías eliminadas", log["filas_vacias_eliminadas"], ""),
@@ -157,11 +163,13 @@ def _pasos_limpieza(log):
          nombres(log["columnas_convertidas_a_fecha"])),
         ("Nombres de columnas corregidos", len(log["columnas_renombradas"]),
          nombres(log["columnas_renombradas"])),
-        ("Valores faltantes rellenados", imputados,
-         f"en {len(log.get('imputaciones', {}))} columna(s)" if imputados else ""),
+        ("Categorías unificadas (nombres escritos distinto)",
+         sum(len(c) for c in unificadas.values()), nombres(unificadas)),
+        ("Valores faltantes rellenados", imputados, nombres(rellenadas) if imputados else ""),
+        ("Fechas no reconocidas (quedan vacías)", fechas_vacias,
+         nombres(sin_fecha) if fechas_vacias else ""),
     ]
     return pd.DataFrame(pasos, columns=["Acción", "Cantidad", "Detalle"])
-
 
 def _categoricas(estadisticas, maximo=12):
     tarjetas = []

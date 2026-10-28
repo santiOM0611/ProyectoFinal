@@ -75,3 +75,10 @@ MAX_SUBIDA_MB = 50
 PUERTO = 5000
 CARPETA_SALIDA = "output"
 MAX_REPORTES_EN_MEMORIA = 5  
+RATIO_DATOS_DISCRETOS = 0.10 
+
+# Limpieza de categorias 
+UNIFICAR_MAX_UNICOS = 200   
+SUFIJOS_IGNORADOS = ("fc", "afc", "cf", "sc", "ltd", "inc")  
+ABREVIATURAS = {"utd": "united"} 
+MAX_POSIBLES_DUPLICADOS = 5 
