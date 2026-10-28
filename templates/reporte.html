@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reporte de análisis · {{ metadata.nombre }}</title>
+{{ script_plotly }}
+<style>
+  :root {
+    --fondo: #f3f2ee; --superficie: #fcfcfb; --tinta: #0b0b0b; --tinta-sec: #52514e;
+    --apagado: #898781; --borde: #e1e0d9; --azul: #2a78d6; --azul-suave: #e8f0fb;
+    --naranja: #eb6834; --amarillo: #eda100; --rojo: #e34948;
+    --radio: 10px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 64px; }
+  body { margin: 0; background: var(--fondo); color: var(--tinta); line-height: 1.5;
+         font-family: system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 15px; }
+  .contenedor { max-width: 1180px; margin: 0 auto; padding: 0 16px; }
+
+  header.portada { background: var(--superficie); border-bottom: 1px solid var(--borde); padding: 28px 0 22px; }
+  header.portada h1 { margin: 0 0 4px; font-size: 26px; letter-spacing: -0.01em; }
+  header.portada p { margin: 0; color: var(--tinta-sec); }
+  .acciones { margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .boton { display: inline-block; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--borde);
+           background: var(--superficie); color: var(--tinta); text-decoration: none; font-size: 14px; }
+  .boton.primario { background: var(--azul); border-color: var(--azul); color: #fff; }
+  .boton:hover { filter: brightness(0.96); }
+
+  nav.menu { position: sticky; top: 0; z-index: 10; background: var(--superficie);
+             border-bottom: 1px solid var(--borde); }
+  nav.menu .contenedor { display: flex; gap: 4px; overflow-x: auto; }
+  nav.menu a { padding: 12px 12px; color: var(--tinta-sec); text-decoration: none; white-space: nowrap; font-size: 14px; }
+  nav.menu a:hover { color: var(--azul); }
+
+  section { margin: 28px 0; }
+  section > h2 { font-size: 20px; margin: 0 0 4px; }
+  section > .intro { color: var(--tinta-sec); margin: 0 0 14px; max-width: 78ch; }
+  h3 { font-size: 15px; margin: 22px 0 8px; }
+
+  .tarjeta { background: var(--superficie); border: 1px solid var(--borde); border-radius: var(--radio);
+             padding: 16px; margin-bottom: 14px; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+  .kpi { background: var(--superficie); border: 1px solid var(--borde); border-radius: var(--radio); padding: 14px 16px; }
+  .kpi .etiqueta { color: var(--tinta-sec); font-size: 13px; }
+  .kpi .valor { font-size: 30px; font-weight: 600; line-height: 1.15; }
+  .kpi .sub { color: var(--apagado); font-size: 12px; }
+
+  .hallazgo { display: grid; grid-template-columns: 112px 1fr; gap: 14px; padding: 12px 0; border-top: 1px solid var(--borde); }
+  .hallazgo:first-child { border-top: 0; padding-top: 0; }
+  .hallazgo .titulo { font-weight: 600; }
+  .hallazgo .detalle { color: var(--tinta-sec); font-size: 14px; margin-top: 2px; }
+  .etiquetas { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+  .nivel, .categoria { font-size: 11.5px; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+  .nivel { font-weight: 600; border: 1px solid; }
+  .nivel.alto { color: #a8211f; background: #fdeceb; border-color: #f3b9b8; }
+  .nivel.medio { color: #7a5200; background: #fff5da; border-color: #f1d98a; }
+  .nivel.bajo { color: var(--tinta-sec); background: #f1f0ec; border-color: var(--borde); }
+  .categoria { color: var(--azul); background: var(--azul-suave); }
+
+  .tabla-scroll { margin-bottom: 14px; overflow: auto; max-height: 420px; border: 1px solid var(--borde); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; background: var(--superficie); }
+  th, td { padding: 6px 12px; text-align: left; border-bottom: 1px solid var(--borde); white-space: nowrap; }
+  th { position: sticky; top: 0; background: #f7f6f3; color: var(--tinta-sec); font-weight: 600; z-index: 1; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  th::first-letter { text-transform: uppercase; }
+  .tarjeta .tabla-scroll { margin-bottom: 0; }
+  tr:last-child td { border-bottom: 0; }
+  .pie { color: var(--apagado); font-size: 12.5px; margin: 6px 0 0; }
+
+  .grafico { background: var(--superficie); border: 1px solid var(--borde); border-radius: var(--radio);
+             padding: 6px; margin-bottom: 14px; overflow: hidden; }
+  .dos-columnas { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; }
+  .nota { background: var(--azul-suave); border-left: 3px solid var(--azul); padding: 10px 14px;
+          border-radius: 6px; color: var(--tinta-sec); margin-bottom: 14px; }
+  .nota.aviso { background: #fff5da; border-left-color: var(--amarillo); }
+  .cifras { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-bottom: 14px; }
+  .cifras div { color: var(--tinta-sec); font-size: 14px; }
+  .cifras b { color: var(--tinta); font-size: 17px; }
+  .chip { display: inline-block; background: #f1f0ec; border-radius: 99px; padding: 1px 9px; font-size: 12.5px; margin: 2px 4px 2px 0; }
+  details { margin: 8px 0; }
+  summary { cursor: pointer; color: var(--azul); }
+  ul.metodos { padding-left: 18px; color: var(--tinta-sec); }
+  ul.metodos li { margin-bottom: 8px; }
+  footer { color: var(--apagado); font-size: 13px; padding: 24px 0 40px; text-align: center; }
+
+  @media (max-width: 640px) { .hallazgo { grid-template-columns: 1fr; gap: 6px; } .etiquetas { flex-direction: row; } }
+  @media print { nav.menu, .acciones { display: none; } .grafico, .tarjeta, .kpi { break-inside: avoid; } body { background: #fff; } }
+</style>
+</head>
+<body>
+
+{% macro tabla(t) %}
+  {% if t %}
+  <div class="tabla-scroll"><table>
+    <thead><tr>{% for c in t.columnas %}<th class="{{ 'num' if t.numericas[loop.index0] }}">{{ c }}</th>{% endfor %}</tr></thead>
+    <tbody>{% for fila in t.filas %}<tr>{% for celda in fila %}<td class="{{ 'num' if t.numericas[loop.index0] }}">{{ celda }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+  </table></div>
+  {% if t.total > t.filas|length %}<p class="pie">Se muestran {{ t.filas|length }} de {{ t.total }} filas.</p>{% endif %}
+  {% endif %}
+{% endmacro %}
+
+{% macro grafico(nombre) %}{% if nombre in graficos %}<div class="grafico">{{ graficos[nombre] }}</div>{% endif %}{% endmacro %}
+
+<header class="portada">
+  <div class="contenedor">
+    <h1>Reporte de análisis exploratorio</h1>
+    <p><b>{{ metadata.nombre }}</b>{% if metadata.hoja %} · hoja «{{ metadata.hoja }}»{% endif %} · {{ metadata.tamano_mb }} MB · generado el {{ fecha }}</p>
+    {% if enlaces %}
+    <div class="acciones">
+      {% if enlaces.descargar %}<a class="boton primario" href="{{ enlaces.descargar }}">Descargar reporte (HTML)</a>{% endif %}
+      {% if enlaces.datos %}<a class="boton" href="{{ enlaces.datos }}">Descargar datos con grupos y outliers (CSV)</a>{% endif %}
+      {% if enlaces.nuevo %}<a class="boton" href="{{ enlaces.nuevo }}">Analizar otro archivo</a>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+</header>
+
+<nav class="menu"><div class="contenedor">
+  <a href="#resumen">Resumen</a><a href="#calidad">Calidad de datos</a><a href="#variables">Variables</a>
+  <a href="#outliers">Outliers</a><a href="#clustering">Clustering</a><a href="#relaciones">Relaciones</a><a href="#metodo">Método</a>
+</div></nav>
+
+<main class="contenedor">
+
+<section id="resumen">
+  <h2>Resumen</h2>
+  <p class="intro">Lo más importante que encontró el sistema, ordenado de mayor a menor relevancia.</p>
+  <div class="kpis">
+    {% for k in kpis %}
+    <div class="kpi"><div class="etiqueta">{{ k.etiqueta }}</div><div class="valor">{{ k.valor }}</div><div class="sub">{{ k.nota }}</div></div>
+    {% endfor %}
+  </div>
+  <h3>Hallazgos principales</h3>
+  <div class="tarjeta">
+    {% for h in hallazgos %}
+    <div class="hallazgo">
+      <div class="etiquetas"><span class="nivel {{ h.nivel }}">{{ h.nivel_texto }}</span><span class="categoria">{{ h.categoria_texto }}</span></div>
+      <div><div class="titulo">{{ h.titulo }}</div>{% if h.detalle %}<div class="detalle">{{ h.detalle }}</div>{% endif %}</div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section id="calidad">
+  <h2>Calidad de datos</h2>
+  <p class="intro">Qué se arregló en el archivo antes de analizarlo. El archivo original nunca se modifica.</p>
+  {{ tabla(tabla_limpieza) }}
+  {{ grafico("nulos") }}
+</section>
+
+<section id="variables">
+  <h2>Variables y estadística descriptiva</h2>
+  <p class="intro">El sistema detectó el tipo de cada columna y calculó el resumen que corresponde a cada tipo.</p>
+  <div class="cifras">
+    {% for n, nombre in conteo_tipos %}<div><b>{{ n }}</b> {{ nombre }}</div>{% endfor %}
+  </div>
+  <details><summary>Ver el tipo asignado a cada columna</summary>{{ tabla(tabla_tipos) }}</details>
+
+  {% if tabla_numericas %}
+  <h3>Variables numéricas</h3>
+  {{ tabla(tabla_numericas) }}
+  {{ grafico("histogramas") }}
+  {% endif %}
+
+  {% if categoricas %}
+  <h3>Variables categóricas</h3>
+  <div class="dos-columnas">
+    {% for c in categoricas %}
+    <div class="tarjeta"><b>{{ c.columna }}</b><div class="pie">{{ c.unicos }} valores distintos · moda: {{ c.moda }}</div>{{ tabla(c.tabla) }}</div>
+    {% endfor %}
+  </div>
+  {% if total_categoricas > categoricas|length %}<p class="pie">Se muestran {{ categoricas|length }} de {{ total_categoricas }} variables categóricas.</p>{% endif %}
+  {{ grafico("categoricas") }}
+  {% endif %}
+
+  {% if temporales %}
+  <h3>Variables de fecha</h3>
+  {% for t in temporales %}<p><b>{{ t.columna }}</b>: del {{ t.minimo }} al {{ t.maximo }} ({{ t.dias }} días)</p>{% endfor %}
+  {{ grafico("temporal") }}
+  {% endif %}
+</section>
+
+<section id="outliers">
+  <h2>Valores atípicos (outliers)</h2>
+  <p class="intro">Registros que se alejan del comportamiento normal. Se usan tres métodos y un registro se confirma como outlier cuando <b>Isolation Forest</b> lo marca y además <b>Z-score</b> o <b>IQR</b> lo respaldan.</p>
+  {% if outliers.omitido %}
+    <div class="nota aviso">No se pudo aplicar: {{ outliers.motivo }}</div>
+  {% else %}
+    <div class="cifras">
+      <div><b>{{ outliers.resumen.n_outliers }}</b> outliers confirmados ({{ outliers.resumen.pct_outliers }}%)</div>
+      <div><b>{{ outliers.resumen.n_isolation_forest }}</b> marcados por Isolation Forest</div>
+      <div><b>{{ outliers.resumen.n_filas_con_zscore }}</b> filas con Z-score &gt; 3</div>
+      <div><b>{{ outliers.resumen.n_filas_con_iqr }}</b> filas fuera del rango IQR</div>
+    </div>
+    {% for aviso in outliers.advertencias %}<div class="nota aviso">{{ aviso }}</div>{% endfor %}
+    {{ grafico("outliers_pca") }}
+    {% if tabla_outliers_registros %}<h3>Registros más atípicos</h3>{{ tabla(tabla_outliers_registros) }}{% endif %}
+    <h3>Outliers por columna</h3>
+    {{ tabla(tabla_outliers_columna) }}
+    {{ grafico("boxplots") }}
+  {% endif %}
+</section>
+
+<section id="clustering">
+  <h2>Agrupamiento (clustering)</h2>
+  <p class="intro">Busca grupos de registros parecidos sin que nadie le diga cuáles son. <b>K-means</b> prueba varios números de grupos y elige el que mejor los separa; <b>DBSCAN</b> busca zonas densas y marca como ruido lo aislado. Los outliers se dejan fuera para que no deformen los grupos.</p>
+  {% if clustering.omitido %}
+    <div class="nota aviso">No se pudo aplicar: {{ clustering.motivo }}</div>
+  {% else %}
+    <div class="cifras">
+      <div><b>{{ clustering.resumen.kmeans_k }}</b> grupos (K-means)</div>
+      <div><b>{{ clustering.resumen.kmeans_silhouette }}</b> silhouette: {{ clustering.resumen.kmeans_interpretacion }}</div>
+      <div><b>{{ clustering.resumen.dbscan_grupos }}</b> zonas densas (DBSCAN) y {{ clustering.resumen.dbscan_ruido }} puntos de ruido</div>
+      <div><b>{{ clustering.resumen.variables_usadas }}</b> variables usadas</div>
+    </div>
+    {% if columnas_ignoradas %}<div class="nota">Columnas ignoradas por el usuario en el clustering: {% for c in columnas_ignoradas %}<span class="chip">{{ c }}</span>{% endfor %}</div>{% endif %}
+    {% for aviso in clustering.advertencias %}<div class="nota aviso">{{ aviso }}</div>{% endfor %}
+    {{ grafico("clusters_pca") }}
+    <div class="dos-columnas">
+      <div><h3>Tamaño de cada grupo</h3>{{ tabla(tabla_tamanos) }}</div>
+      <div><h3>Qué distingue a cada grupo</h3>{{ tabla(tabla_distintivas) }}</div>
+    </div>
+    {{ grafico("perfiles_clusters") }}
+    {{ grafico("silhouette") }}
+  {% endif %}
+</section>
+
+<section id="relaciones">
+  <h2>Correlaciones y dependencia</h2>
+  <p class="intro">Qué variables se mueven juntas. Se usa la medida adecuada para cada par de tipos: <b>Pearson/Spearman</b> (número con número), <b>eta cuadrado</b> (categoría con número) y <b>V de Cramér</b> (categoría con categoría). Solo se listan relaciones significativas (p &lt; 0.05) y al menos moderadas.</p>
+  {% if correlaciones.omitido %}
+    <div class="nota aviso">No se pudo aplicar: {{ correlaciones.motivo }}</div>
+  {% else %}
+    {% for aviso in correlaciones.advertencias %}<div class="nota aviso">{{ aviso }}</div>{% endfor %}
+    {% if tabla_ranking %}<h3>Relaciones más importantes</h3>{{ tabla(tabla_ranking) }}{% else %}<div class="nota">No se encontraron relaciones significativas y moderadas o fuertes.</div>{% endif %}
+    {{ grafico("relaciones") }}
+    {{ grafico("heatmap_correlaciones") }}
+    {{ grafico("dispersion_pares") }}
+    <div class="nota"><b>Recuerda:</b> correlación no implica causalidad. Dos variables pueden moverse juntas sin que una cause la otra.</div>
+  {% endif %}
+</section>
+
+<section id="metodo">
+  <h2>Método y límites</h2>
+  <div class="tarjeta">
+    <ul class="metodos">
+      <li><b>Z-score:</b> mide a cuántas desviaciones estándar está un valor de la media (umbral 3). Pierde fiabilidad con datos muy sesgados.</li>
+      <li><b>IQR:</b> marca valores fuera de [Q1 − 1.5·IQR, Q3 + 1.5·IQR]. Se desactiva en columnas donde más de la mitad de los valores son iguales.</li>
+      <li><b>Isolation Forest:</b> modelo que aísla registros raros mirando todas las columnas a la vez. Se asume que como máximo el 5% son anomalías; ese porcentaje es un supuesto, no un hallazgo.</li>
+      <li><b>K-means:</b> se prueba de 2 a 8 grupos y se elige el mejor según el índice silhouette, que tiende a favorecer pocos grupos. Las variables se estandarizan antes de agrupar.</li>
+      <li><b>DBSCAN:</b> agrupa por densidad; el radio (eps) se estima automáticamente. Con muchas columnas suele encontrar una sola nube.</li>
+      <li><b>PCA:</b> resume las variables en 2 ejes solo para poder dibujar los grupos; cada gráfico indica qué porcentaje de la variación conserva.</li>
+      <li><b>Dependencia:</b> eta cuadrado ajustado (evita inflar la relación cuando hay muchas categorías) y V de Cramér corregida por sesgo. Al hacer muchas pruebas a la vez, algunas relaciones «significativas» pueden ser casualidad.</li>
+      <li><b>Valores faltantes:</b> se rellenan con la mediana (números) o la moda (categorías); esto puede suavizar la variación real.</li>
+    </ul>
+  </div>
+</section>
+
+</main>
+<footer>Sistema inteligente de análisis exploratorio automatizado · reporte generado el {{ fecha }}</footer>
+</body>
+</html>
