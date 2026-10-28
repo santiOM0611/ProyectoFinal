@@ -86,8 +86,9 @@ def perfilar_clusters(datos, etiquetas):
 
 
 # Funcion principal del modulo
-def agrupar(df, esquema, mascara_excluir=None):
-    columnas = [c for c in columnas_por_tipo(esquema, "numerica") if df[c].std() > 0]
+def agrupar(df, esquema, mascara_excluir=None, excluir=()):
+    columnas = [c for c in columnas_por_tipo(esquema, "numerica")
+                if df[c].std() > 0 and c not in excluir]
     if len(columnas) < config.MIN_COLUMNAS_CLUSTERING:
         return resultado_base(
             True, "Se necesitan al menos 2 columnas numericas para agrupar.")
