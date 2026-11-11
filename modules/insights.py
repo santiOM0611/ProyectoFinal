@@ -126,7 +126,7 @@ def hallazgos_outliers(outliers):
     if not registros.empty:
         peor = registros.iloc[0]
         valor = peor["valor"]
-        valor = f"{valor:.4g}" if isinstance(valor, float) else str(valor)
+        valor = (f"{valor:,.0f}" if abs(valor) >= 1000 else f"{valor:.4g}") if isinstance(valor, float) else str(valor)
         detalle += (f" El más extremo es la fila {peor['fila']}: «{peor['variable_mas_extrema']}» "
                     f"vale {valor} ({peor['z_maximo']} desviaciones de la media).")
     detalle += " Un valor atípico no siempre es un error: puede ser un caso real e interesante."
