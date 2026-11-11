@@ -104,7 +104,7 @@ def grafico_boxplots(df, resultado_outliers):
     tabla = resultado_outliers["tablas"]["por_columna"]
     columnas = tabla[tabla["iqr_n"] > 0]["columna"].head(config.MAX_BOXPLOTS).tolist()
     if not columnas:
-        return None
+        columnas = tabla["columna"].head(config.MAX_BOXPLOTS).tolist()
     filas, cols = _cuadricula(len(columnas), 4)
     fig = make_subplots(rows=filas, cols=cols, subplot_titles=columnas,
                         vertical_spacing=0.14, horizontal_spacing=0.06)
@@ -272,7 +272,8 @@ def grafico_perfiles_clusters(resultado_clustering):
 
 
 def grafico_heatmap_correlaciones(resultado_corr):
-    matriz = resultado_corr["datos_graficos"].get("matriz_pearson")
+    datos = resultado_corr["datos_graficos"]
+    matriz = datos.get("matriz_pearson")
     if matriz is None:
         return None
     if len(matriz) > config.MAX_VARIABLES_HEATMAP:
@@ -280,14 +281,24 @@ def grafico_heatmap_correlaciones(resultado_corr):
         elegidas = conectividad.sort_values(ascending=False).head(config.MAX_VARIABLES_HEATMAP)
         matriz = matriz.loc[elegidas.index, elegidas.index]
     nombres = matriz.columns.tolist()
+    matrices = [("Pearson", matriz), ("Spearman", datos["matriz_spearman"].loc[nombres, nombres])]
 
-    fig = go.Figure(go.Heatmap(
-        z=matriz.to_numpy(), x=nombres, y=nombres, zmin=-1, zmax=1, zmid=0,
-        colorscale=DIVERGENTE, colorbar=dict(title="r", thickness=12),
-        text=matriz.round(2).to_numpy() if len(nombres) <= 12 else None,
-        texttemplate="%{text}" if len(nombres) <= 12 else None,
-        hovertemplate="%{y} vs %{x}: r = %{z:.2f}<extra></extra>",
-    ))
+    fig = go.Figure()
+    for numero, (metodo, m) in enumerate(matrices):
+        fig.add_trace(go.Heatmap(
+            z=m.to_numpy(), x=nombres, y=nombres, zmin=-1, zmax=1, zmid=0,
+            colorscale=DIVERGENTE, colorbar=dict(title="r", thickness=12),
+            text=m.round(2).to_numpy() if len(nombres) <= 12 else None,
+            texttemplate="%{text}" if len(nombres) <= 12 else None,
+            hovertemplate="%{y} vs %{x}: r = %{z:.2f}<extra>" + metodo + "</extra>",
+            visible=(numero == 0),
+        ))
+    botones = [dict(label=metodo, method="update",
+                    args=[{"visible": [i == numero for i in range(len(matrices))]},
+                          {"title.text": f"Correlacion entre variables numericas ({metodo})"}])
+               for numero, (metodo, _) in enumerate(matrices)]
+    fig.update_layout(updatemenus=[dict(type="buttons", direction="right", buttons=botones,
+                                        x=1.0, xanchor="right", y=1.08, yanchor="bottom")])
     fig.update_yaxes(autorange="reversed")
     return _estilo(fig, "Correlacion entre variables numericas (Pearson)",
                    alto=max(450, 26 * len(nombres) + 160))

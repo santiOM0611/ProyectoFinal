@@ -49,3 +49,18 @@ def test_web_varios_archivos_y_uno_malo(csv_mixto):
 
 def test_web_sin_archivo_da_error_400():
     assert crear_app().test_client().post("/analizar", data={}).status_code == 400
+
+def test_hallazgos_con_el_formato_esperado(csv_mixto):
+    titulos = " | ".join(h["titulo"] for h in analizar_archivo(csv_mixto)["hallazgos"])
+    assert "agrupaciones principales según" in titulos
+    assert "tienen valores atípicos en" in titulos
+    assert "correlación (r=" in titulos
+    assert "explica un" in titulos and "de la variación en" in titulos
+
+
+def test_web_rechaza_mas_archivos_del_maximo(csv_mixto):
+    from modules import config
+    cliente = crear_app().test_client()
+    contenido = Path(csv_mixto).read_bytes()
+    archivos = [(f"{i}.csv", contenido) for i in range(config.MAX_ARCHIVOS + 1)]
+    assert _subir(cliente, archivos).status_code == 400

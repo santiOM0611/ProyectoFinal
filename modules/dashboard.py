@@ -1,4 +1,3 @@
-
 #Modulo 10: constructor del dashboard HTML.
 
 
@@ -31,7 +30,8 @@ ETIQUETAS_COLUMNAS = {
     "z_maximo": "z máximo", "zscore_n": "Z-score (n)", "zscore_pct": "Z-score (%)",
     "iqr_n": "IQR (n)", "iqr_pct": "IQR (%)", "direccion": "dirección",
     "diferencia_desv": "diferencia (desv.)", "p_valor": "p-valor", "categorica": "categórica",
-    "numerica": "numérica",
+    "numerica": "numérica", "varianza_pct": "varianza (%)", "acumulada_pct": "acumulada (%)",
+    "variables_principales": "variables que más pesan",
 }
 
 NOMBRES_TIPO = {
@@ -237,6 +237,8 @@ def construir_dashboard(resultado, embebido=False, enlaces=None):
         "correlaciones": correlaciones,
         "tabla_ranking": (None if correlaciones["omitido"] else
                           tabla_a_dict(correlaciones["tablas"]["ranking"])),
+        "tabla_pca": (None if correlaciones["omitido"] else
+                      tabla_a_dict(correlaciones["tablas"]["componentes_pca"])),
         "graficos": _html_figuras(resultado["figuras"]),
     }
     return _entorno.get_template("reporte.html").render(**contexto)

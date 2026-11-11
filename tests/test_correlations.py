@@ -39,3 +39,10 @@ def test_ranking_solo_trae_relaciones_significativas(df_mixto):
     ranking = res["tablas"]["ranking"]
     assert (ranking["p_valor"] < 0.05).all()
     assert (ranking["fuerza"] != "debil").all()
+
+def test_componentes_principales_resumen_multivariado(df_mixto):
+    from modules.ai.correlations import componentes_principales
+    tabla = componentes_principales(df_mixto, ["edad", "gasto", "ruido"])
+    assert {"componente", "varianza_pct", "acumulada_pct", "variables_principales"} <= set(tabla.columns)
+    assert tabla["acumulada_pct"].is_monotonic_increasing
+    assert componentes_principales(df_mixto, ["edad", "gasto"]).empty

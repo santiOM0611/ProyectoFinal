@@ -5,6 +5,8 @@ from itertools import combinations
 import numpy as np
 import pandas as pd
 from scipy import stats
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
 
 from modules import config
 from modules.ai.base import resultado_base
@@ -115,6 +117,33 @@ def dependencia_cat_cat(df, cols_cat):
                        for v in tabla["cramer_v"]]
     return tabla.sort_values("cramer_v", ascending=False).reset_index(drop=True)
 
+# multivariado: componentes principales (PCA)
+def componentes_principales(df, columnas):
+    """
+    Resume todas las variables numericas a la vez. Cada componente es una combinacion de
+    variables; la tabla dice cuanta variacion explica y que variables pesan mas en el.
+    """
+    if len(columnas) < 3:
+        return pd.DataFrame()
+
+    X = StandardScaler().fit_transform(df[columnas])
+    pca = PCA(random_state=config.SEMILLA).fit(X)
+    varianza = pca.explained_variance_ratio_ * 100
+    acumulada = np.cumsum(varianza)
+
+    filas = []
+    for numero, pesos in enumerate(pca.components_, start=1):
+        principales = np.argsort(np.abs(pesos))[::-1][:config.TOP_VARIABLES_CLUSTER]
+        filas.append({
+            "componente": f"PC{numero}",
+            "varianza_pct": round(float(varianza[numero - 1]), 1),
+            "acumulada_pct": round(float(acumulada[numero - 1]), 1),
+            "variables_principales": ", ".join(columnas[i] for i in principales),
+        })
+        if acumulada[numero - 1] >= config.PCA_VARIANZA_OBJETIVO or numero == config.PCA_MAX_FILAS:
+            break
+    return pd.DataFrame(filas)
+
 # Ranking global
 def construir_ranking(pares_num, cat_num, cat_cat):
     filas = []
@@ -135,7 +164,7 @@ def construir_ranking(pares_num, cat_num, cat_cat):
                                            "valor", "p_valor", "fuerza"])
     ranking = ranking[(ranking["p_valor"] < config.P_MAXIMO) & (ranking["fuerza"] != "debil")]
 
-    ranking["orden"] = ranking["fuerza"].replace({"fuerte": 0, "moderada": 1})
+    ranking["orden"] = ranking["fuerza"].map({"fuerte": 0, "moderada": 1})
     ranking["magnitud"] = ranking["valor"].abs()
     ranking = ranking.sort_values(["orden", "magnitud"], ascending=[True, False])
     return ranking.drop(columns=["orden", "magnitud"]).head(config.MAX_RELACIONES).reset_index(drop=True)
@@ -170,6 +199,7 @@ def analizar_correlaciones(df, esquema):
         cat_cat = dependencia_cat_cat(df, cols_cat)
 
     ranking = construir_ranking(pares_num, cat_num, cat_cat)
+    componentes = componentes_principales(df, cols_num)
 
     resultado["resumen"] = {
         "pares_numericos_fuertes": int((pares_num["fuerza"] == "fuerte").sum())
@@ -182,12 +212,15 @@ def analizar_correlaciones(df, esquema):
         "relaciones_cat_cat_significativas": int(
             ((cat_cat["p_valor"] < config.P_MAXIMO) & (cat_cat["fuerza"] != "debil")).sum())
         if not cat_cat.empty else 0,
+        "componentes_para_objetivo": len(componentes),
+        "variables_numericas": len(cols_num),
     }
     resultado["tablas"] = {
         "pares_numericos": pares_num.head(config.MAX_PARES_TABLA),
         "categorica_numerica": cat_num.head(config.MAX_PARES_TABLA),
         "categorica_categorica": cat_cat.head(config.MAX_PARES_TABLA),
         "ranking": ranking,
+        "componentes_pca": componentes,
     }
     resultado["datos_graficos"] = datos_graficos
 

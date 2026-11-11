@@ -25,9 +25,11 @@ def analizar_desde_terminal(args):
         destino = os.path.join(config.CARPETA_SALIDA, f"reporte_{base}.html")
         guardar_dashboard(resultado, destino, embebido=True)
 
-        print("\nHallazgos principales:")
-        for hallazgo in resultado["hallazgos"][:6]:
+        print("\nHallazgos principales (de mayor a menor importancia):")
+        for hallazgo in resultado["hallazgos"]:
             print(f"  - {hallazgo['titulo']}")
+            if hallazgo["detalle"]:
+                print(f"      {hallazgo['detalle']}")
         print(f"\nReporte creado: {destino}\n")
         if not args.sin_abrir:
             webbrowser.open("file://" + os.path.abspath(destino))

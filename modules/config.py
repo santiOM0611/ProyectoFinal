@@ -55,6 +55,8 @@ P_MAXIMO = 0.05
 MIN_ESPERADO_CHI2 = 5        
 MAX_PARES_TABLA = 50
 MAX_RELACIONES = 15
+PCA_VARIANZA_OBJETIVO = 80   # % de variacion que deben resumir los componentes mostrados
+PCA_MAX_FILAS = 6
 
 # Graficos
 MAX_HISTOGRAMAS = 12
@@ -83,4 +85,4 @@ RATIO_DATOS_DISCRETOS = 0.10
 UNIFICAR_MAX_UNICOS = 200   
 SUFIJOS_IGNORADOS = ("fc", "afc", "cf", "sc", "ltd", "inc")  
 ABREVIATURAS = {"utd": "united"} 
-MAX_POSIBLES_DUPLICADOS = 5 
+MAX_POSIBLES_DUPLICADOS = 5

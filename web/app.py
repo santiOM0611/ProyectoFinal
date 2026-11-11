@@ -1,6 +1,3 @@
-
-#Modulo 12: servidor web.
-
 import os
 import tempfile
 import traceback
@@ -36,22 +33,12 @@ def crear_app():
     def inicio():
         return pagina_inicio()
 
-    #recibir el archivo y analizarlo 
-
-    @app.post("/analizar")
-    def analizar():
-        archivo = request.files.get("archivo")
-        if archivo is None or archivo.filename == "":
-            return pagina_inicio("Selecciona un archivo antes de analizar.", 400)
-
+    #analizar un solo archivo; devuelve (identificador, error, codigo_http)
+    def procesar_archivo(archivo, hoja, ignorar):
         extension = os.path.splitext(archivo.filename)[1].lower()
         if extension not in config.EXTENSIONES_PERMITIDAS:
-            return pagina_inicio(
-                f"Formato no soportado ({extension or 'sin extension'}). "
-                f"Usa: {', '.join(config.EXTENSIONES_PERMITIDAS)}", 400)
-
-        hoja = request.form.get("hoja", "").strip() or None
-        ignorar = [c.strip() for c in request.form.get("ignorar", "").split(",") if c.strip()]
+            return None, (f"Formato no soportado ({extension or 'sin extension'}). "
+                          f"Usa: {', '.join(config.EXTENSIONES_PERMITIDAS)}"), 400
 
         nombre_seguro = secure_filename(archivo.filename) or ("subida" + extension)
         with tempfile.TemporaryDirectory() as carpeta:
@@ -60,19 +47,50 @@ def crear_app():
             try:
                 resultado = analizar_archivo(ruta, hoja, excluir_clustering=ignorar)
             except ErrorDeCarga as error:
-                return pagina_inicio(str(error), 400)
+                return None, str(error), 400
             except Exception:
-                traceback.print_exc()  
-                return pagina_inicio(
-                    "Ocurrió un error inesperado al analizar el archivo. "
-                    "Revisa que los datos sean una tabla válida.", 500)
+                traceback.print_exc()
+                return None, ("Ocurrió un error inesperado al analizar el archivo. "
+                              "Revisa que los datos sean una tabla válida."), 500
 
         resultado["metadata"]["nombre"] = archivo.filename  # nombre original, con acentos
         identificador = uuid.uuid4().hex[:10]
         reportes[identificador] = resultado
         while len(reportes) > config.MAX_REPORTES_EN_MEMORIA:
             reportes.popitem(last=False)  # se olvida el mas antiguo
-        return redirect(url_for("ver_reporte", identificador=identificador))
+        return identificador, None, 200
+
+    #recibir uno o varios archivos y analizarlos
+
+    @app.post("/analizar")
+    def analizar():
+        archivos = [a for a in request.files.getlist("archivo") if a.filename]
+        if not archivos:
+            return pagina_inicio("Selecciona un archivo antes de analizar.", 400)
+        if len(archivos) > config.MAX_ARCHIVOS:
+            return pagina_inicio(
+                f"Puedes subir hasta {config.MAX_ARCHIVOS} archivos a la vez.", 400)
+
+        hoja = request.form.get("hoja", "").strip() or None
+        ignorar = [c.strip() for c in request.form.get("ignorar", "").split(",") if c.strip()]
+
+        resultados = []  # (nombre, identificador, error)
+        codigo_error = 400
+        for archivo in archivos:
+            identificador, error, codigo = procesar_archivo(archivo, hoja, ignorar)
+            resultados.append((archivo.filename, identificador, error))
+            if error:
+                codigo_error = codigo
+
+        # un solo archivo: va directo al reporte (o muestra su error)
+        if len(archivos) == 1:
+            _, identificador, error = resultados[0]
+            if error:
+                return pagina_inicio(error, codigo_error)
+            return redirect(url_for("ver_reporte", identificador=identificador))
+
+        # varios archivos: lista con un enlace por reporte
+        return render_template("lote.html", resultados=resultados)
 
     #mostrar el reporte 
     def buscar(identificador):

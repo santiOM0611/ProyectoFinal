@@ -120,8 +120,7 @@ def hallazgos_outliers(outliers):
             "outliers", "bajo", "No se confirmaron valores atípicos",
             "Isolation Forest no encontró registros raros que además Z-score o IQR confirmaran.")]
 
-    detalle = (f"Isolation Forest los marcó como raros y Z-score o IQR lo confirmaron en alguna columna. "
-               f"Las columnas más afectadas son {_lista(resumen['columnas_mas_afectadas'])}.")
+    detalle = ("Isolation Forest los marcó como raros y Z-score o IQR lo confirmaron en alguna columna.")
     registros = outliers["tablas"]["registros"]
     if not registros.empty:
         peor = registros.iloc[0]
@@ -131,9 +130,11 @@ def hallazgos_outliers(outliers):
                     f"vale {valor} ({peor['z_maximo']} desviaciones de la media).")
     detalle += " Un valor atípico no siempre es un error: puede ser un caso real e interesante."
 
+    columnas = _lista([f"«{c}»" for c in resumen["columnas_mas_afectadas"]], 3) or "alguna variable"
     resultado = [_hallazgo(
         "outliers", "alto" if resumen["pct_outliers"] >= 8 else "medio",
-        f"{_plural(resumen['n_outliers'], 'registro atípico', 'registros atípicos')} ({_pct(resumen['pct_outliers'])})", detalle)]
+        f"El {_pct(resumen['pct_outliers'])} de los registros ({resumen['n_outliers']}) tienen valores atípicos en {columnas}",
+        detalle)]
     for aviso in outliers["advertencias"]:
         resultado.append(_hallazgo("outliers", "bajo", "Límite del método IQR", aviso))
     return resultado
@@ -160,8 +161,12 @@ def hallazgos_clustering(clustering):
     nivel = "alto" if silhouette >= 0.5 and not r["datos_discretos"] else "medio"
     interpretacion = ("datos muy repetidos: interpretar con cuidado" if r["datos_discretos"]
                       else r["kmeans_interpretacion"])
-    titulo = f"K-means encontró {r['kmeans_k']} grupos ({interpretacion})"
-    detalle = f"Silhouette = {silhouette}. " + _describir_grupos(clustering) + "."
+    diferencias = clustering["datos_graficos"]["diferencias"]
+    variables = diferencias.abs().max().sort_values(ascending=False).head(2).index.tolist()
+    titulo = (f"Se detectaron {r['kmeans_k']} agrupaciones principales según "
+              + " y ".join(f"«{v}»" for v in variables))
+    detalle = (f"K-means: {interpretacion} (silhouette = {silhouette}). "
+               + _describir_grupos(clustering) + ".")
     if silhouette < 0.25:
         detalle += (" Un silhouette tan bajo indica que los registros no forman grupos claros: "
                     "no conviene sacar conclusiones fuertes de estos grupos.")
@@ -199,18 +204,17 @@ def hallazgos_correlaciones(correlaciones):
 
     pares = tablas["pares_numericos"]
     fuertes = pares[pares["fuerza"] == "fuerte"] if not pares.empty else pares
-    if not fuertes.empty:
-        primero = fuertes.iloc[0]
+    if not pares.empty:
+        primero = pares.iloc[0]
+        es_fuerte = primero["fuerza"] == "fuerte"
+        signo = "" if primero["pearson"] > 0 else " negativa"
         resultado.append(_hallazgo(
-            "correlaciones", "alto",
-            f"«{primero['variable_a']}» y «{primero['variable_b']}» están muy relacionadas (r = {primero['pearson']:.2f})",
+            "correlaciones", "alto" if es_fuerte else "medio",
+            f"Existe una {'fuerte' if es_fuerte else 'moderada'} correlación{signo} "
+            f"(r={primero['pearson']:.2f}) entre «{primero['variable_a']}» y «{primero['variable_b']}»",
             f"Cuando una sube, la otra tiende a {'subir' if primero['pearson'] > 0 else 'bajar'}. "
-            f"En total hay {len(fuertes)} pares de variables numéricas con relación fuerte (|r| ≥ {config.CORR_FUERTE})."))
-    elif not pares.empty:
-        resultado.append(_hallazgo(
-            "correlaciones", "medio", f"Hay {len(pares)} pares numéricos con relación moderada",
-            f"La más alta es «{pares.iloc[0]['variable_a']}» con «{pares.iloc[0]['variable_b']}» "
-            f"(r = {pares.iloc[0]['pearson']:.2f})."))
+            f"En total hay {_plural(len(fuertes), 'par', 'pares')} de variables numéricas con relación "
+            f"fuerte (|r| ≥ {config.CORR_FUERTE}) y {_plural(len(pares) - len(fuertes), 'par', 'pares')} con relación moderada."))
 
     multi = correlaciones["resumen"]["pares_multicolinealidad"]
     if multi > 0:
@@ -220,6 +224,21 @@ def hallazgos_correlaciones(correlaciones):
             + f" (|r| ≥ {config.CORR_MULTICOLINEALIDAD})",
             "Es multicolinealidad: son variables redundantes. Antes de construir un modelo "
             "conviene quedarse con una de cada par."))
+
+    componentes = tablas.get("componentes_pca")
+    if componentes is not None and not componentes.empty:
+        ultimo = componentes.iloc[-1]
+        total = correlaciones["resumen"]["variables_numericas"]
+        detalle = (f"Análisis multivariado (PCA). El primer componente (PC1) explica "
+                   f"{_pct(componentes.iloc[0]['varianza_pct'])} y lo definen sobre todo "
+                   f"{componentes.iloc[0]['variables_principales']}.")
+        if len(componentes) < total / 2:
+            detalle += " Hay mucha redundancia: pocas dimensiones bastan para describir los datos."
+        resultado.append(_hallazgo(
+            "correlaciones", "bajo",
+            f"{_plural(len(componentes), 'componente resume', 'componentes resumen')} "
+            f"el {_pct(ultimo['acumulada_pct'])} de la variación de {total} variables numéricas",
+            detalle))
 
     no_lineales = pares[pares["posible_no_lineal"]] if not pares.empty else pares
     if not no_lineales.empty:
@@ -235,7 +254,7 @@ def hallazgos_correlaciones(correlaciones):
     for f in cat_num.head(2).itertuples():
         resultado.append(_hallazgo(
             "correlaciones", "alto" if f.fuerza == "fuerte" else "medio",
-            f"«{f.categorica}» explica {_pct(f.eta2 * 100)} de la variación de «{f.numerica}»",
+            f"La variable «{f.categorica}» explica un {f.eta2 * 100:.0f}% de la variación en «{f.numerica}»",
             f"Relación {f.fuerza} (eta cuadrado ajustado = {f.eta2:.2f}). Revisa que una columna "
             "no se derive de la otra: entonces la relación sería obvia."))
 

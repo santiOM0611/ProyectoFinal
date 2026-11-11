@@ -228,7 +228,7 @@
 
 <section id="relaciones">
   <h2>Correlaciones y dependencia</h2>
-  <p class="intro">Qué variables se mueven juntas. Se usa la medida adecuada para cada par de tipos: <b>Pearson/Spearman</b> (número con número), <b>eta cuadrado</b> (categoría con número) y <b>V de Cramér</b> (categoría con categoría). Solo se listan relaciones significativas (p &lt; 0.05) y al menos moderadas.</p>
+  <p class="intro">Qué variables se mueven juntas. Se usa la medida adecuada para cada par de tipos: <b>Pearson/Spearman</b> (número con número; bivariadas), <b>eta cuadrado</b> (categoría con número) y <b>V de Cramér</b> (categoría con categoría). Solo se listan relaciones significativas (p &lt; 0.05) y al menos moderadas.</p>
   {% if correlaciones.omitido %}
     <div class="nota aviso">No se pudo aplicar: {{ correlaciones.motivo }}</div>
   {% else %}
@@ -237,6 +237,11 @@
     {{ grafico("relaciones") }}
     {{ grafico("heatmap_correlaciones") }}
     {{ grafico("dispersion_pares") }}
+    {% if tabla_pca %}
+    <h3>Relaciones multivariadas (componentes principales)</h3>
+    <p class="pie">Resume todas las variables numéricas a la vez: cada componente (PC) es una combinación de variables y se indica cuánta variación explica.</p>
+    {{ tabla(tabla_pca) }}
+    {% endif %}
     <div class="nota"><b>Recuerda:</b> correlación no implica causalidad. Dos variables pueden moverse juntas sin que una cause la otra.</div>
   {% endif %}
 </section>
