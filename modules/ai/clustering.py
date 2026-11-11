@@ -16,25 +16,35 @@ def interpretar_silhouette(valor):
         return "grupos con separacion debil"
     return "sin una estructura de grupos clara"
 
-# K-means
+def _submuestra(X):
+    if len(X) <= config.MAX_FILAS_BUSQUEDA:
+        return None
+    generador = np.random.default_rng(config.SEMILLA)
+    return generador.choice(len(X), config.MAX_FILAS_BUSQUEDA, replace=False)
+
 
 def ejecutar_kmeans(X):
-    n = len(X)
+    indices = _submuestra(X)
+    datos = X if indices is None else X[indices]
+    n = len(datos)
     k_maximo = min(config.K_MAX, n - 1)
     muestra = config.MUESTRA_SILHOUETTE if n > config.MUESTRA_SILHOUETTE else None
 
     filas = []
     etiquetas_por_k = {}
     for k in range(config.K_MIN, k_maximo + 1):
-        modelo = KMeans(n_clusters=k, n_init=10, random_state=config.SEMILLA).fit(X)
-        puntaje = silhouette_score(X, modelo.labels_, sample_size=muestra,
+        modelo = KMeans(n_clusters=k, n_init=10, random_state=config.SEMILLA).fit(datos)
+        puntaje = silhouette_score(datos, modelo.labels_, sample_size=muestra,
                                    random_state=config.SEMILLA)
         filas.append({"k": k, "silhouette": float(puntaje), "inercia": float(modelo.inertia_)})
         etiquetas_por_k[k] = modelo.labels_
 
     tabla = pd.DataFrame(filas)
     mejor_k = int(tabla.loc[tabla["silhouette"].idxmax(), "k"])
-    return tabla, etiquetas_por_k[mejor_k]
+    if indices is None:
+        return tabla, etiquetas_por_k[mejor_k]
+    final = KMeans(n_clusters=mejor_k, n_init=10, random_state=config.SEMILLA).fit(X)
+    return tabla, final.labels_
 
 # DBSCAN
 def estimar_eps(X, min_muestras):
@@ -48,10 +58,16 @@ def estimar_eps(X, min_muestras):
     return eps
 
 def ejecutar_dbscan(X):
-    min_muestras = int(min(50, max(config.DBSCAN_MIN_MUESTRAS, round(0.02 * len(X)))))
-    eps = estimar_eps(X, min_muestras)
-    modelo = DBSCAN(eps=eps, min_samples=min_muestras).fit(X)
-    return modelo.labels_, eps, min_muestras
+    indices = _submuestra(X)
+    datos = X if indices is None else X[indices]
+    min_muestras = int(min(50, max(config.DBSCAN_MIN_MUESTRAS, round(0.02 * len(datos)))))
+    eps = estimar_eps(datos, min_muestras)
+    modelo = DBSCAN(eps=eps, min_samples=min_muestras).fit(datos)
+    if indices is None:
+        return modelo.labels_, eps, min_muestras
+    vecino = NearestNeighbors(n_neighbors=1).fit(datos)
+    posiciones = vecino.kneighbors(X, return_distance=False)[:, 0]
+    return modelo.labels_[posiciones], eps, min_muestras
 
 # Perfil de cada grupo
 
@@ -170,6 +186,10 @@ def agrupar(df, esquema, mascara_excluir=None, excluir=()):
             f"Hay solo {combinaciones} combinaciones distintas en {int(usar.sum())} registros "
             "(valores que se repiten mucho): los grupos reflejan esas combinaciones y el "
             "silhouette puede salir inflado.")
+    if len(X) > config.MAX_FILAS_BUSQUEDA:
+        resultado["advertencias"].append(
+            f"Con {len(X)} registros, la busqueda del mejor k y de DBSCAN se hizo sobre una "
+            f"muestra de {config.MAX_FILAS_BUSQUEDA} (para que el analisis no tarde demasiado).")
     if int(mejor["k"]) == min(config.K_MAX, len(X) - 1):
         resultado["advertencias"].append(
             f"El mejor k coincide con el maximo probado ({config.K_MAX}): "
