@@ -17,6 +17,10 @@ def interpretar_silhouette(valor):
     return "sin una estructura de grupos clara"
 
 def _submuestra(X):
+    """
+    Con muchas filas, buscar el k y la densidad en TODAS seria muy lento.
+    Devuelve los indices de una muestra aleatoria (o None si no hace falta).
+    """
     if len(X) <= config.MAX_FILAS_BUSQUEDA:
         return None
     generador = np.random.default_rng(config.SEMILLA)
@@ -24,6 +28,11 @@ def _submuestra(X):
 
 
 def ejecutar_kmeans(X):
+    """
+    Prueba K-means con k = K_MIN ... K_MAX y elige el k con mejor silhouette.
+    Con muchas filas, el k se busca en una muestra y el modelo final se ajusta con todas.
+    Devuelve (tabla_de_puntajes, etiquetas_del_mejor_k).
+    """
     indices = _submuestra(X)
     datos = X if indices is None else X[indices]
     n = len(datos)
@@ -58,6 +67,11 @@ def estimar_eps(X, min_muestras):
     return eps
 
 def ejecutar_dbscan(X):
+    """
+    Devuelve (etiquetas, eps, min_muestras). Etiqueta -1 = ruido.
+    Con muchas filas se ajusta en una muestra y el resto toma la etiqueta de su
+    vecino mas cercano de la muestra.
+    """
     indices = _submuestra(X)
     datos = X if indices is None else X[indices]
     min_muestras = int(min(50, max(config.DBSCAN_MIN_MUESTRAS, round(0.02 * len(datos)))))
