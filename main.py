@@ -13,23 +13,24 @@ from web.app import crear_app
 
 def analizar_desde_terminal(args):
     ignorar = [c.strip() for c in args.ignorar.split(",") if c.strip()]
-    try:
-        print(f"Analizando {args.archivo} ...")
-        resultado = analizar_archivo(args.archivo, args.hoja, excluir_clustering=ignorar)
-    except ErrorDeCarga as error:
-        print(f"ERROR: {error}")
-        return
+    for archivo in args.archivos:
+        try:
+            print(f"Analizando {archivo} ...")
+            resultado = analizar_archivo(archivo, args.hoja, excluir_clustering=ignorar)
+        except ErrorDeCarga as error:
+            print(f"ERROR en {archivo}: {error}")
+            continue
 
-    base = os.path.splitext(os.path.basename(args.archivo))[0]
-    destino = os.path.join(config.CARPETA_SALIDA, f"reporte_{base}.html")
-    guardar_dashboard(resultado, destino, embebido=True)
+        base = os.path.splitext(os.path.basename(archivo))[0]
+        destino = os.path.join(config.CARPETA_SALIDA, f"reporte_{base}.html")
+        guardar_dashboard(resultado, destino, embebido=True)
 
-    print("\nHallazgos principales:")
-    for hallazgo in resultado["hallazgos"][:6]:
-        print(f"  - {hallazgo['titulo']}")
-    print(f"\nReporte creado: {destino}")
-    if not args.sin_abrir:
-        webbrowser.open("file://" + os.path.abspath(destino))
+        print("\nHallazgos principales:")
+        for hallazgo in resultado["hallazgos"][:6]:
+            print(f"  - {hallazgo['titulo']}")
+        print(f"\nReporte creado: {destino}\n")
+        if not args.sin_abrir:
+            webbrowser.open("file://" + os.path.abspath(destino))
 
 def iniciar_servidor(args):
     app = crear_app()
@@ -41,7 +42,7 @@ def iniciar_servidor(args):
 
 def main():
     parser = argparse.ArgumentParser(description="Sistema de analisis exploratorio automatizado")
-    parser.add_argument("archivo", nargs="?", help="CSV o Excel a analizar (si se omite, abre la web)")
+    parser.add_argument("archivos", nargs="*", help="uno o varios CSV/Excel a analizar (si se omiten, abre la web)")
     parser.add_argument("--hoja", help="hoja del Excel (por defecto, la primera)")
     parser.add_argument("--ignorar", default="",
                         help="columnas a ignorar en el clustering, separadas por coma")
@@ -49,7 +50,7 @@ def main():
     parser.add_argument("--sin-abrir", action="store_true", help="no abrir el navegador")
     args = parser.parse_args()
 
-    if args.archivo:
+    if args.archivos:
         analizar_desde_terminal(args)
     else:
         iniciar_servidor(args)
