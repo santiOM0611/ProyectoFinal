@@ -2,6 +2,7 @@ import re
 import unicodedata
 import warnings
 import pandas as pd
+import numpy as np
 from modules import config
 
 PATRON_FECHA = (r"^\s*(?:\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}"
@@ -194,6 +195,7 @@ def limpiar(df):
 
     df = _limpiar_nombres(df, log)
     df = _limpiar_texto(df)
+    df = df.replace([np.inf, -np.inf], np.nan)
 
     columnas_antes = set(df.columns)
     df = df.dropna(axis=1, how="all")
@@ -225,5 +227,5 @@ def limpiar(df):
     df = _imputar(df, log)
 
     log["filas_finales"] = int(df.shape[0])
-    log["columnas_finales"] = int(df.columns.size and df.shape[1])
+    log["columnas_finales"] = int(df.shape[1])
     return df, log
