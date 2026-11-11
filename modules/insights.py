@@ -216,7 +216,7 @@ def hallazgos_correlaciones(correlaciones):
     if multi > 0:
         resultado.append(_hallazgo(
             "correlaciones", "medio",
-            (f"1 par de variables mide casi lo mismo" if multi == 1 else f"{multi} pares de variables miden casi lo mismo")
+            ("1 par de variables mide casi lo mismo" if multi == 1 else f"{multi} pares de variables miden casi lo mismo")
             + f" (|r| ≥ {config.CORR_MULTICOLINEALIDAD})",
             "Es multicolinealidad: son variables redundantes. Antes de construir un modelo "
             "conviene quedarse con una de cada par."))
